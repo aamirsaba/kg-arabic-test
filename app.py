@@ -218,5 +218,37 @@ def reset_data():
     flash("تم مسح جميع سجلات الطلاب.", "success")
     return redirect(url_for("admin"))
 
+@app.route("/admin/change-password", methods=["POST"])
+@admin_required
+def admin_change_password():
+    current = request.form.get("current_password", "")
+    new_pw = request.form.get("new_password", "")
+    confirm = request.form.get("confirm_password", "")
+
+    if new_pw != confirm:
+        flash("كلمات المرور الجديدة غير متطابقة.", "error")
+        return redirect(url_for("admin"))
+    if len(new_pw) < 6:
+        flash("يجب أن تكون كلمة المرور 6 أحرف على الأقل.", "error")
+        return redirect(url_for("admin"))
+
+    conn = get_db()
+    admin = conn.execute(
+        "SELECT * FROM admins WHERE email=? AND password_hash=?",
+        (session["admin_email"], hash_password(current))
+    ).fetchone()
+    
+    if not admin:
+        flash("كلمة المرور الحالية غير صحيحة.", "error")
+    else:
+        conn.execute(
+            "UPDATE admins SET password_hash=? WHERE email=?",
+            (hash_password(new_pw), session["admin_email"])
+        )
+        conn.commit()
+        flash("تم تحديث كلمة المرور بنجاح.", "success")
+    conn.close()
+    return redirect(url_for("admin"))
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5001) # Changed port to 5001 so it doesn't conflict with English app
